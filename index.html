@@ -397,18 +397,26 @@
    * ═══════════════════════════════════════════════════════
    */
 
-  // ── HARD-CODED APP URL (change this if your link rotates) ────────────────
-  const FULL_APP_URL = 'https://apps.powerapps.com/play/e/3438315b-970d-e3c1-9d9b-20690032f757/a/c806a1b5-c017-4d4a-bfd2-5cc26a0c2687?tenantId=b14d86f1-83ba-4b13-a702-b5c0231b9337&hint=e85b9379-7323-4868-97c1-4946d228ef69&sourcetime=1764058375064&SessionID=T67_MFPC111_19526';
+  // ── HARD-CODED BASE URL (all fixed params except SessionID) ─────────────
+  const BASE_APP_URL = 'https://apps.powerapps.com/play/e/3438315b-970d-e3c1-9d9b-20690032f757/a/c806a1b5-c017-4d4a-bfd2-5cc26a0c2687?tenantId=b14d86f1-83ba-4b13-a702-b5c0231b9337&hint=e85b9379-7323-4868-97c1-4946d228ef69&sourcetime=1764058375064';
+  // ─────────────────────────────────────────────────────────────────────────
+  //  Pass the SessionID via the URL hash (# is safe — & inside it is never
+  //  misread as a separate page-level query parameter):
+  //
+  //    https://herman26242.github.io/ONTRCK/#SessionID=T67_MFPC111_19526
+  //
   // ─────────────────────────────────────────────────────────────────────────
 
   (function () {
-    let embedUrl = FULL_APP_URL;
+    // Parse the hash: #SessionID=XXXXX
+    const hash       = window.location.hash;
+    const hashParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : '');
+    const sessionID  = hashParams.get('SessionID');
 
-    // Hash-based override: index.html#app=https://apps.powerapps.com/...
-    // Safe because the hash is never sent to the server and supports & freely.
-    const hash = window.location.hash; // e.g. "#app=https://..."
-    if (hash.startsWith('#app=')) {
-      embedUrl = decodeURIComponent(hash.slice(5));
+    // Append SessionID to base URL if provided
+    let embedUrl = BASE_APP_URL;
+    if (sessionID) {
+      embedUrl += '&SessionID=' + encodeURIComponent(sessionID);
     }
 
     const container = document.getElementById('app-container');
@@ -416,32 +424,28 @@
     const notice    = document.getElementById('param-notice');
     const paramDisp = document.getElementById('param-display');
 
-    if (embedUrl) {
-      // Show a tidy version in the fake browser bar
-      try {
-        const u = new URL(embedUrl);
-        urlBar.textContent = u.hostname + u.pathname;
-      } catch {
-        urlBar.textContent = embedUrl.substring(0, 80) + '…';
-      }
-
-      // Show hash-override notice if applicable
-      if (hash.startsWith('#app=')) {
-        notice.style.display = 'flex';
-        paramDisp.textContent = '#app=… (hash override)';
-      }
-
-      // Inject iframe
-      container.innerHTML =
-        '<iframe id="powerapp-iframe"' +
-        ' src="' + embedUrl + '"' +
-        ' allow="geolocation; microphone; camera; fullscreen"' +
-        ' sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"' +
-        ' title="ONTRCK PowerApp">' +
-        '</iframe>';
-    } else {
-      urlBar.textContent = 'No app URL configured';
+    // Show a tidy version in the fake browser bar
+    try {
+      const u = new URL(embedUrl);
+      urlBar.textContent = u.hostname + u.pathname;
+    } catch {
+      urlBar.textContent = embedUrl.substring(0, 80) + '…';
     }
+
+    // Show notice when SessionID was passed in
+    if (sessionID) {
+      notice.style.display = 'flex';
+      paramDisp.textContent = '#SessionID=' + sessionID;
+    }
+
+    // Inject iframe
+    container.innerHTML =
+      '<iframe id="powerapp-iframe"' +
+      ' src="' + embedUrl + '"' +
+      ' allow="geolocation; microphone; camera; fullscreen"' +
+      ' sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation"' +
+      ' title="ONTRCK PowerApp">' +
+      '</iframe>';
   })();
 </script>
 
