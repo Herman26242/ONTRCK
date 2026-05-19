@@ -385,63 +385,53 @@
    *  ONTRCK — PowerApp Embed Configuration
    * ═══════════════════════════════════════════════════════
    *
-   *  The PowerApps URL contains a unique section at the end.
-   *  Instead of hard-coding it, you can pass it via the page URL.
+   *  FULL_APP_URL is set directly below.
    *
-   *  THREE WAYS TO LOAD THE APP:
+   *  You can also override it per-link using the URL hash:
+   *    index.html#app=https://apps.powerapps.com/play/...
    *
-   *  ① URL token only (recommended for sharing links):
-   *     Set BASE_APP_URL to your fixed PowerApps base path, then share:
-   *     ontrck.html?app=e/ENV_ID/a/APP_GUID?tenantId=TENANT_ID
-   *
-   *  ② Full URL in query string:
-   *     ontrck.html?appurl=https%3A%2F%2Fapps.powerapps.com%2Fplay%2F...
-   *     (URL-encode the full PowerApps link)
-   *
-   *  ③ Hard-code directly (simplest):
-   *     Set FULL_APP_URL to your complete PowerApps URL.
+   *  Using the hash (#) avoids the broken-&-parameter problem
+   *  that occurs when the PowerApps URL contains multiple
+   *  query parameters (&hint=, &SessionID=, etc.).
    *
    * ═══════════════════════════════════════════════════════
    */
 
-  // ── SET ONE OF THESE ─────────────────────────────────────────────────────
-  const BASE_APP_URL = 'https://apps.powerapps.com/play/';  // Option ①
-  const FULL_APP_URL = '';  // Option ③ — paste full URL here to always use it
+  // ── HARD-CODED APP URL (change this if your link rotates) ────────────────
+  const FULL_APP_URL = 'https://apps.powerapps.com/play/e/3438315b-970d-e3c1-9d9b-20690032f757/a/c806a1b5-c017-4d4a-bfd2-5cc26a0c2687?tenantId=b14d86f1-83ba-4b13-a702-b5c0231b9337&hint=e85b9379-7323-4868-97c1-4946d228ef69&sourcetime=1764058375064&SessionID=T67_MFPC111_19526';
   // ─────────────────────────────────────────────────────────────────────────
 
   (function () {
-    const params     = new URLSearchParams(window.location.search);
-    const appToken   = params.get('app');      // Option ①: unique segment
-    const appFullUrl = params.get('appurl');   // Option ②: full URL encoded
+    let embedUrl = FULL_APP_URL;
 
-    let embedUrl = '';
-
-    if (FULL_APP_URL) {
-      embedUrl = FULL_APP_URL;
-    } else if (appFullUrl) {
-      embedUrl = decodeURIComponent(appFullUrl);
-    } else if (appToken) {
-      embedUrl = BASE_APP_URL + appToken;
+    // Hash-based override: index.html#app=https://apps.powerapps.com/...
+    // Safe because the hash is never sent to the server and supports & freely.
+    const hash = window.location.hash; // e.g. "#app=https://..."
+    if (hash.startsWith('#app=')) {
+      embedUrl = decodeURIComponent(hash.slice(5));
     }
 
-    const container   = document.getElementById('app-container');
-    const urlBar      = document.getElementById('frame-url-display');
-    const notice      = document.getElementById('param-notice');
-    const paramDisp   = document.getElementById('param-display');
+    const container = document.getElementById('app-container');
+    const urlBar    = document.getElementById('frame-url-display');
+    const notice    = document.getElementById('param-notice');
+    const paramDisp = document.getElementById('param-display');
 
     if (embedUrl) {
-      // Show the URL in the fake browser bar
-      urlBar.textContent = embedUrl;
-
-      // Show param notice (except when hard-coded)
-      if (!FULL_APP_URL) {
-        notice.style.display = 'flex';
-        paramDisp.textContent = appToken
-          ? '?app=' + appToken
-          : '?appurl=' + embedUrl.substring(0, 60) + '…';
+      // Show a tidy version in the fake browser bar
+      try {
+        const u = new URL(embedUrl);
+        urlBar.textContent = u.hostname + u.pathname;
+      } catch {
+        urlBar.textContent = embedUrl.substring(0, 80) + '…';
       }
 
-      // Inject the iframe
+      // Show hash-override notice if applicable
+      if (hash.startsWith('#app=')) {
+        notice.style.display = 'flex';
+        paramDisp.textContent = '#app=… (hash override)';
+      }
+
+      // Inject iframe
       container.innerHTML =
         '<iframe id="powerapp-iframe"' +
         ' src="' + embedUrl + '"' +
@@ -450,7 +440,7 @@
         ' title="ONTRCK PowerApp">' +
         '</iframe>';
     } else {
-      urlBar.textContent = 'No app URL set — see script comments to configure';
+      urlBar.textContent = 'No app URL configured';
     }
   })();
 </script>
